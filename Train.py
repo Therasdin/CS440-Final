@@ -15,6 +15,7 @@ from Model import (
 # -----------------------------
 DATA_DIR = "data"   # Root dataset folder with train/val/test subfolders
 NUM_CLASSES = 10
+# make sure to change the above / below so that the data matches
 CLASS_NAMES = [
     "butterfly", "cat", "cow", "chicken", "dog",
     "elephant", "sheep", "spider", "squirrel", "horse"
