@@ -4,10 +4,9 @@ import shutil
 import torch
 from PIL import Image
 
-# reuse existing modules
+import Train
 from ImageProcessor import ImageProcessor
 from Model import load_checkpoint
-import train
 
 
 # ======================================================
@@ -19,8 +18,12 @@ def prepare_data(
     split=(0.8, 0.1, 0.1),
     seed=42
 ):
+    """
+    Converts Animals-10 folder structure into train/val/test.
+    Runs once and skips if already prepared.
+    """
     if os.path.exists(target_dir):
-        print(f"[INFO] '{target_dir}' already exists. Skipping dataset split.")
+        print("[INFO] 'data' already exists. Skipping dataset split.")
         return
 
     print("[INFO] Preparing dataset splits...")
@@ -29,10 +32,10 @@ def prepare_data(
     for split_name in ["train", "val", "test"]:
         os.makedirs(os.path.join(target_dir, split_name), exist_ok=True)
 
-    class_names = sorted([
+    class_names = sorted(
         d for d in os.listdir(source_dir)
         if os.path.isdir(os.path.join(source_dir, d))
-    ])
+    )
 
     for cls in class_names:
         cls_path = os.path.join(source_dir, cls)
@@ -82,6 +85,8 @@ def run_pet_vs_pest_camera(
     all_images = []
     for cls in class_names:
         cls_dir = os.path.join(test_dir, cls)
+        if not os.path.exists(cls_dir):
+            continue
         for fname in os.listdir(cls_dir):
             if fname.lower().endswith((".jpg", ".jpeg", ".png")):
                 all_images.append((cls, os.path.join(cls_dir, fname)))
@@ -111,11 +116,12 @@ def run_pet_vs_pest_camera(
 
 
 # ======================================================
-# MAIN ORCHESTRATOR
+# MAIN PIPELINE
 # ======================================================
 def main():
     ANIMALS10_DIR = "Animals-10"
     DATA_DIR = "data"
+    CKPT_PATH = "animal_classifier.pt"
 
     CLASS_NAMES = [
         "butterfly", "cat", "cow", "chicken", "dog",
@@ -123,24 +129,17 @@ def main():
     ]
 
     PET_CLASSES = {"dog", "cat", "cow", "chicken", "sheep", "horse"}
-    CKPT_PATH = "animal_classifier.pt"
 
     # -----------------------------
     # Prepare dataset
     # -----------------------------
-    prepare_data(
-        source_dir=ANIMALS10_DIR,
-        target_dir=DATA_DIR
-    )
+    prepare_data(ANIMALS10_DIR, DATA_DIR)
 
     # -----------------------------
-    # Train + evaluate (reused)
+    # Train model (delegated to Train.py)
     # -----------------------------
     print("\n[INFO] Running training pipeline...")
-    # This executes train.py top-to-bottom
-    # and saves animal_classifier.pt
-    import importlib
-    importlib.reload(train)
+    Train.main()
 
     # -----------------------------
     # Load trained model
@@ -153,7 +152,7 @@ def main():
     )
 
     # -----------------------------
-    # Camera demo
+    # Camera simulation
     # -----------------------------
     processor = ImageProcessor(img_size=224)
 
@@ -166,7 +165,7 @@ def main():
         num_samples=6
     )
 
-    print("\n[INFO] Project pipeline complete.")
+    print("\n[INFO] Pipeline complete.")
 
 
 # ======================================================
