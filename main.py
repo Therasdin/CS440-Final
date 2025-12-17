@@ -6,7 +6,7 @@ from PIL import Image
 
 import Train
 from ImageProcessor import ImageProcessor
-from Model import load_checkpoint
+from Model import load_checkpoint, predict
 
 
 # ======================================================
@@ -18,7 +18,7 @@ def prepare_data(
     split=(0.8, 0.1, 0.1),
     seed=42
 ):
-    """
+    """     ````````````````````
     Converts Animals-10 folder structure into train/val/test.
     Runs once and skips if already prepared.
     """
@@ -167,9 +167,65 @@ def main():
 
     print("\n[INFO] Pipeline complete.")
 
+def predict_single_image(
+    image_path,
+    model_path="animal_classifier.pt",
+    class_names=None
+):
+    processor = ImageProcessor(img_size=224)
+
+    # Load model
+    model = load_checkpoint(
+        model_path=model_path,
+        backbone_name="efficientnet_b0",
+        num_classes=len(class_names)
+    )
+
+    # Load + preprocess image
+    img = Image.open(image_path).convert("RGB")
+    tensor = processor.get_base_transform()(img).unsqueeze(0)
+
+    # Predict
+    result = predict(model, tensor, class_names=class_names)
+
+    pred_idx = result["preds"].item()
+    pred_label = result["labels"][0]
+    confidence = result["probs"][0][pred_idx].item() * 100
+
+    print("\n=== SINGLE IMAGE PREDICTION ===")
+    print(f"Image: {image_path}")
+    print(f"Prediction: {pred_label}")
+    print(f"Confidence: {confidence:.2f}%")
+
 
 # ======================================================
 # ENTRY POINT
 # ======================================================
 if __name__ == "__main__":
-    main()
+    CLASS_NAMES = [
+        "butterfly", "cat", "cow", "chicken", "dog",
+        "elephant", "sheep", "spider", "squirrel", "horse"
+    ]
+
+    print("\nChoose an option:")
+    print("1 - Train / Retrain model")
+    print("2 - Classify a single image")
+    choice = input("Enter 1 or 2: ").strip()
+
+    if choice == "1":
+        print("\n[INFO] Training model...")
+        main()
+
+    elif choice == "2":
+        image_path = input("\nEnter path to image: ").strip()
+
+        if not os.path.exists(image_path):
+            print("[ERROR] Image file not found.")
+        else:
+            predict_single_image(
+                image_path=image_path,
+                class_names=CLASS_NAMES
+            )
+
+    else:
+        print("[ERROR] Invalid choice. Please run again and enter 1 or 2.")
